@@ -1,16 +1,12 @@
 import sys
 import os
 import re
+import importlib
+from utils import is_python_file
+from config import PROJECT_PATH, REG_PATTERN
 
 
-def is_python_file(file_name):
-    if re.match(".*\.py$", file_name):
-        return True
-
-    return False
-
-
-def recursive_search(dir_path, python_files):
+def recursive_search(dir_path, python_files, python_file_names):
     # list all files in the current directory
     files = os.listdir(dir_path)
 
@@ -18,47 +14,72 @@ def recursive_search(dir_path, python_files):
         full_path = os.path.join(dir_path, file_name)
 
         if os.path.isdir(full_path):
-            recursive_search(full_path, python_files)
+            recursive_search(full_path, python_files, python_file_names)
         elif os.path.isfile(full_path):
-            if is_python_file(full_path):
+            if is_python_file(file_name):
+                python_file_names.append(file_name[:-3])
                 python_files.append(full_path)
 
-                print("Python file {file_path} appended".format(
-                    file_path=full_path
-                ))
+                # print("Python file {file_path} appended".format(
+                #     file_path=file_name
+                # ))
             else:
-                print("Not a python file, passed.")
+                pass
+                # print("Not a python file, passed.")
         else:
-            print("Not a file or directory, passed.")
+            pass
+            # print("Not a file or directory, passed.")
 
 
 def scan_modules(file_path):
     modules = set()
 
-    from_pattern = "[\^\n] *from\s+(\w+)"
-    import_pattern = "[\^\n] *import\s+(\w+)"
-
     with open(file_path) as f:
         data = f.read()
 
-        modules |= set(re.findall(from_pattern, data))
-        modules |= set(re.findall(import_pattern, data))
+        modules |= set(re.findall(REG_PATTERN["python_import"], data, re.S))
+        modules |= set(re.findall(REG_PATTERN["python_from_import"], data, re.S))
 
     return modules
 
 
+def create_req_list_file(modules):
+    if isinstance(modules, list):
+        modules = "\n".join(modules)
+
+        with open(os.path.join(PROJECT_PATH, "requirements.txt")) as f:
+            f.write(modules)
+
+        return True
+    return False
+
+
 if __name__ == "__main__":
-    root_path = "/Users/yua/Documents/Projects/RSB2-Forked"
     python_files = []
+    python_file_names = []
     modules = set()
 
-    print("-" * 10 + "Scanning python files..." + "-" * 10)
+    print("Scanning python files...")
 
-    recursive_search(root_path, python_files)
+    recursive_search(PROJECT_PATH, python_files, python_file_names)
 
-    print("-" * 10 + "Scanning modules..." + "-" * 10)
-    
+    print("Found {0} python files, scanning modules...".format(
+        len(python_file_names)
+    ))
+
     for python_file in python_files:
         modules |= scan_modules(python_file)
 
-    print(modules)
+    handled_modules = []
+
+    for module in modules:
+        try:
+            importlib.find_module(module)
+        except Exception as e:
+            handled_modules.append(module)
+            continue
+
+    print("Modules not installed:")
+    print(handled_modules)
+
+
