@@ -19,10 +19,6 @@ def create_req_list_file(modules):
 
 
 class Application:
-    _python_files = []
-    _python_file_names = []
-    _modules = set()
-
     def __init__(self):
         super().__init__()
 
@@ -39,6 +35,8 @@ class Application:
                 self._export_modules()
             elif self.args[1] == "import":
                 self._import_modules()
+            elif self.args[1] == "clean":
+                self._clean_modules()
 
     def _pyfile_searcher(self, dir_path=PROJECT_PATH, pyfiles=[], pyfile_names=[]):
         files = os.listdir(dir_path)
@@ -104,6 +102,33 @@ class Application:
         print("\033[0;32;40m[Modules not installed:]\033[0m \n{0}".format(
             "\n".join(uninstalled_modules)
         ))
+
+    def _clean_modules(self):
+        raw_modules = self._modules_analyzer()
+
+        export_name = "requirements.txt"
+        useful_modules = []
+
+        if len(self.args) == 3:
+            export_name = self.args[2]
+
+        target_file_name = os.path.join(PROJECT_PATH, export_name)
+
+        with open(target_file_name) as f:
+            data = f.read()
+
+            modules = data.split("\n")
+
+            for module in modules:
+                module_name = module.split("==")[0]
+                
+                if module_name in raw_modules:
+                    useful_modules.append(module)
+
+            with open(target_file_name, "w") as f:
+                f.write("\n".join(useful_modules))
+
+
 
     def _export_modules(self):
         raw_modules = self._modules_analyzer()
