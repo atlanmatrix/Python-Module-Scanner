@@ -82,8 +82,23 @@ class Application:
         with open(file_path) as f:
             data = f.read()
 
-            modules |= set(re.findall(REG_PATTERN["python_import"], data, re.S))
-            modules |= set(re.findall(REG_PATTERN["python_from_import"], data, re.S))
+            # pattern 1
+            import_modules = re.findall(REG_PATTERN["python_import"], data, re.S)
+            handled_import_modules = []
+            
+            for module in import_modules:
+                handled_import_modules += re.split("\s*,\s*", module)
+
+            modules |= set(handled_import_modules)
+
+            # pattern 2
+            from_modules = re.findall(REG_PATTERN["python_from_import"], data, re.S)
+            handled_from_modules = []
+            
+            for module in from_modules:
+                handled_from_modules += re.split("\s*,\s*", module)
+            
+            modules |= set(handled_from_modules)
 
         return modules
 
@@ -127,8 +142,6 @@ class Application:
 
             with open(target_file_name, "w") as f:
                 f.write("\n".join(useful_modules))
-
-
 
     def _export_modules(self):
         raw_modules = self._modules_analyzer()
